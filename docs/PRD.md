@@ -6,7 +6,7 @@ Tansekak is an **admission eligibility checker** for Egyptian Thanaweya Amma gra
 
 A student enters an academic track and a total score. The app compares those values to official cutoff scores for the **current published admission year** and lists university faculties the student is **eligible** for.
 
-Students can also look up a stored Thanaweya result by seating number and see their track rank among peers in the same track, when matching rows exist in the database.
+Students can also look up a stored Thanaweya result by seating number once an administrator has imported results for the current year.
 
 Results are **indicative only**. Egypt’s official electronic coordination portal decides final placement. Tansekak does not register preferences, allocate seats, or issue admission decisions.
 
@@ -16,7 +16,7 @@ Results are **indicative only**. Egypt’s official electronic coordination port
 
 | User                     | Goal                                                                                                                     |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| Student / parent         | Check which faculties a score is eligible for; look up a Thanaweya result and track rank; read a short coordination FAQ. |
+| Student / parent         | Check which faculties a score is eligible for; look up a Thanaweya result; read a short coordination FAQ. |
 | Operator / administrator | Publish the current admission year; maintain cutoffs (CRUD and Markdown import).                                         |
 | Catalog maintainer       | Manage governorates, universities, faculties, and university–faculty links via API only (no admin UI).                   |
 
@@ -26,12 +26,13 @@ There is a single Identity role: **Administrator**. Public visitors are unauthen
 
 ## 3. In scope
 
-- Public RTL Arabic SPA for prediction, results, Thanaweya lookup, track rank, guide, and designer credits.
+- Public RTL Arabic SPA for prediction, results, Thanaweya lookup, guide, and designer credits.
 - Eligible-college prediction against the current published year.
 - Admin cookie-authenticated UI for years, cutoffs, and cutoff import.
-- Catalog JSON bootstrap, admission-year bootstrap, faculty `AllowedTracks` repair, Mathematics track repair on student rows, missing-track cutoff bootstrap, and admin seed.
+- Catalog JSON bootstrap, admission-year bootstrap, faculty `AllowedTracks` repair, missing-track cutoff bootstrap, and admin seed.
+- Admin Excel import of student results (`.xlsx`, max 50 MB) for the current year.
 - Markdown cutoff import for the current admission year.
-- Read-only Thanaweya lookup and track rank against existing `StudentResult` rows.
+- Read-only Thanaweya lookup against imported `StudentResult` rows. The page opens when the current year has results.
 - Envelope API with stable `errorCode` values and Arabic failure messages.
 
 ---
@@ -49,9 +50,8 @@ Tansekak does **not**:
 - Use bearer tokens for auth.
 - Ship OpenAPI outside Development.
 - Include E2E or Angular unit-test projects.
-- **Import student results from Excel** (removed; dashboard placeholder only).
 - Run async import jobs or use Cloudflare R2 for large uploads (removed).
-- Expose `/admin/import-results` or any admin write API for `StudentResult`.
+- Track rank page or stored track/rank fields on `StudentResult` (removed).
 
 ---
 
@@ -79,7 +79,6 @@ Tansekak does **not**:
 | `/predict`          | Track + score form                         |
 | `/results`          | Eligible faculties (paginated, searchable) |
 | `/thanaweya-result` | Seating-number result lookup               |
-| `/track-rank`       | Seating lookup with track rank among peers |
 | `/guide`            | Static coordination FAQ                    |
 | `/designer`         | Developer / credits page                   |
 
@@ -111,19 +110,15 @@ The `/predict` page collects input and navigates to `/results?track=&score=`. On
 
 Until cutoffs exist for the current year, prediction returns an empty list.
 
-### 6.3 Thanaweya lookup and track rank
+### 6.3 Thanaweya lookup
 
-Both `/thanaweya-result` and `/track-rank` look up `GET /api/thanaweya-results/{seatingNo}` for the **current** admission year. There is no separate rank endpoint.
+`/thanaweya-result` calls `GET /api/thanaweya-results/{seatingNo}` for the **current** admission year.
 
-When a row exists, the API returns seating number, Arabic name, total degree, student case, year, maximum score, inferred track, track rank, and track cohort size when rank can be computed.
+When a row exists, the API returns seating number, Arabic name, total degree, year, and maximum score.
 
-**Rank rule:** among students in the same exact track (`Science`, `Mathematics`, or `Literature`), **higher score ranks better**; ties are broken by **lower seating number**.
+The page and the API are available only after the current year has imported results (`studentResultsAvailable` on `GET /api/config`). Lookup is limited to 60 requests per minute per IP. Lookup returns not found when the seating number is missing for the current year.
 
-The track-rank page may show a percentile derived in the UI from `trackRank` and `trackTotalStudents`; that value is not a separate API field.
-
-Lookup returns not found when the seating number is missing for the current year.
-
-**Data source:** `StudentResult` rows must already exist in the database. There is no admin import or write API in the current stage.
+**Data source:** an administrator uploads one `.xlsx` at `/admin/import-results`. Each upload replaces every result for the current year.
 
 ---
 
@@ -131,7 +126,7 @@ Lookup returns not found when the seating number is missing for the current year
 
 Public UI and `GET /api/config` expose **three** tracks: `Science`, `Mathematics`, `Literature`.
 
-Each track is distinct end-to-end: prediction, cutoff import, faculty eligibility, student result storage, and track rank all use **exact track matching** (no bucketing).
+Each track is distinct end-to-end: prediction, cutoff import, and faculty eligibility use **exact track matching** (no bucketing). Student results are not stored by track.
 
 ---
 
@@ -146,8 +141,9 @@ Authentication is **cookie-based ASP.NET Core Identity** with the **Administrato
 | `/admin/years`   | Create, edit, and delete the single admission year                              |
 | `/admin/cutoffs` | CRUD for the **current year only** (API may filter by `yearId`)                 |
 | `/admin/import`  | One `.md` per track (Science, Mathematics, Literature) for the **current year** |
+| `/admin/import-results` | One `.xlsx` per upload; replaces all student results for the **current year** |
 
-The dashboard includes a **disabled placeholder card** for student-result Excel import (“الخدمة غير متاحة حاليًا — سيتم تفعيلها لاحقًا”). It is not a route and has no backend.
+The dashboard links to `/admin/import-results`. The page shows the stored count, the latest import or delete, the upload, and a delete-all action that requires typing the confirmation word.
 
 The cutoff import page shows a progress overlay. Navigation away is **blocked** until the import finishes or the operator confirms leaving.
 
@@ -201,7 +197,8 @@ Business entities use **integer IDs** allocated by `EntityIdAllocator` / `Entity
 | **UniversityFaculty** | Links a university to a faculty; cutoffs hang off this pair                           |
 | **AdmissionYear**     | Calendar year, `MaximumScore`, `IsCurrent`                                            |
 | **AdmissionCutoff**   | Year + university–faculty + track + `CutoffScore`                                     |
-| **StudentResult**     | Year + seating no, Arabic name, total degree, case description, optional stored track |
+| **StudentResult**     | Year + seating no, Arabic name, total degree                                          |
+| **StudentResultImportEvent** | Import or delete: file name, row count, time, admin email                     |
 | **EntityIdSequence**  | Next integer ID per entity name                                                       |
 
 **Relationships (high level):**
@@ -210,6 +207,7 @@ Business entities use **integer IDs** allocated by `EntityIdAllocator` / `Entity
 Governorate 1──* University 1──* UniversityFaculty *──1 Faculty
 AdmissionYear 1──* AdmissionCutoff *──1 UniversityFaculty
 AdmissionYear 1──* StudentResult
+AdmissionYear 1──* StudentResultImportEvent
 ```
 
 Uniqueness that matters in operations: one calendar year value; cutoffs are replaced per year+track on Markdown import.
@@ -224,9 +222,8 @@ On startup the API validates production configuration (non-Development), applies
 
 1. **Catalog seed (once):** if `Governorates` is empty, load JSON from `SeededData/` (`Governorates`, `Universities`, `Faculties`, `UniversityFaculties`) and create year **2027**, max score **320**, `IsCurrent = true`. After that, the database is the source of truth for those catalog rows.
 2. **Faculty repair (every startup):** sync `Faculties.AllowedTracks` from seed JSON when they diverge.
-3. **Mathematics track repair (every startup):** reclassify `StudentResults` rows stored as Science that should be Mathematics, using case description and seating-number inference.
-4. **Cutoff bootstrap (every startup):** import seed Markdown for any track that has **zero** cutoffs in the current year. Does not overwrite existing cutoffs.
-5. **Admin user:** from `AdminSeed` (`AdminSeed__Email` / `AdminSeed__Password`). Development defaults are rejected at startup outside Development.
+3. **Cutoff bootstrap (every startup):** import seed Markdown for any track that has **zero** cutoffs in the current year. Does not overwrite existing cutoffs.
+4. **Admin user:** from `AdminSeed` (`AdminSeed__Email` / `AdminSeed__Password`). Development defaults are rejected at startup outside Development.
 
 **Seed cutoff files:**
 
@@ -245,7 +242,7 @@ Student workbooks are not stored in the repo and are not imported at startup.
 Admin imports target the **current** admission year only. There is no preview step: a file is validated, then applied in full or rejected in full.
 
 - **Cutoffs:** One Markdown (`.md`, max 10 MB) per track (`Science`, `Mathematics`, `Literature`). Pipe table with college name and minimum cutoff columns. Each import replaces that track for the current year only.
-- **Student results:** **Not implemented.** No Excel upload API, no async jobs. Public lookup reads existing `StudentResult` rows only.
+- **Student results:** one `.xlsx` (max 50 MB). Row 1 must contain `seating_no`, `arabic_name`, and `total_degree` (any order; extra columns ignored). Seating numbers are digits only and unique. Scores run from 0 to the year's maximum, with at most 2 decimal places. Any error rejects the whole file. The response returns the first 100 errors and states the total count. A successful import replaces every result for that year inside one database transaction.
 
 Any validation error rejects the entire file. Import endpoints and error codes: **[docs/API.md](API.md)**.
 
@@ -271,7 +268,7 @@ In production the API serves the Angular build from `wwwroot/` and falls back to
 | Data       | EF Core 10, PostgreSQL, Npgsql |
 | Frontend   | Angular 19 standalone, RTL     |
 | Validation | FluentValidation               |
-| Tests      | xUnit (70 tests)               |
+| Tests      | xUnit                              |
 
 **Clean Architecture** projects: `Tansekak.Domain`, `Tansekak.Application`, `Tansekak.Infrastructure`, `Tansekak.Api`.
 
@@ -291,11 +288,12 @@ Checklist, env vars, and first-boot sequence: **[docs/DEPLOY.md](DEPLOY.md)**.
 
 | Project                         | In `Tansekak.sln` / CI | Coverage                                                                                                                   |
 | ------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `Tansekak.Application.Tests`    | Yes (29)               | Track rules, Arabic error catalog, results query helpers                                                                   |
-| `Tansekak.Infrastructure.Tests` | Yes (31)               | Prediction, admission year rules, Thanaweya lookup, Mathematics track repair, seeded Markdown parse, connection resolution |
-| `Tansekak.Api.Tests`            | Yes (10)               | HTTP integration (config, predict, Thanaweya lookup, auth) and global exception handler                                    |
+| `Tansekak.Application.Tests`    | Yes                    | Track rules, Arabic error catalog, results query helpers                                                    |
+| `Tansekak.Infrastructure.Tests` | Yes                    | Prediction, admission year rules, Thanaweya lookup, Excel reader, seeded Markdown parse, connection resolution |
+| `Tansekak.Infrastructure.IntegrationTests` | Yes         | Postgres import: replace, rollback, cancel, concurrent lock, delete, year guards                           |
+| `Tansekak.Api.Tests`            | Yes                    | HTTP integration (config, predict, Thanaweya lookup, auth, student-result import) and global exception handler |
 
-There are no integration-against-Postgres, E2E, or Angular unit-test projects.
+There are no E2E or Angular unit-test projects. The Postgres project needs Docker.
 
 ---
 
@@ -304,8 +302,8 @@ There are no integration-against-Postgres, E2E, or Angular unit-test projects.
 The product is successful for this stage when:
 
 - A student can get an **eligible-only** faculty list for the published year, filtered by track and `AllowedTracks`, sorted by closest cutoff.
-- A student can look up a stored result by seating number and see track rank when matching `StudentResult` rows exist.
-- An operator can manage the admission year, import Science/Mathematics/Literature Markdown, and CRUD current-year cutoffs.
+- A student can look up an imported result by seating number when the current year has results.
+- An operator can manage the admission year, import Science/Mathematics/Literature Markdown, CRUD current-year cutoffs, and replace or delete the current year's student results from Excel.
 - Failures return Arabic catalog messages and stable error codes; health is a raw probe; auth is cookies.
 - Fresh local databases bootstrap catalog + 2027 current year + admin + missing-track cutoffs from seed Markdown, so prediction works without a manual first import when those files are on disk.
 

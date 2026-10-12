@@ -1,4 +1,5 @@
-import { Component, inject } from '@angular/core';
+import { Component, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -9,17 +10,12 @@ import {
   digitsOnlyValidator,
 } from '../../form-validators';
 import { formatNumber } from '../../utils/format-number.util';
-import {
-  hasTrackRank,
-  predictQueryParams,
-} from '../../utils/student-result.util';
+import { predictQueryParams } from '../../utils/student-result.util';
 import { scorePercentage, scoreProgress } from '../../utils/thanaweya-score.util';
-import { getTrackLabel } from '../../utils/track-label.util';
 import { submitStudentLookup } from '../../utils/student-lookup.util';
-import {
-  STUDENT_LOOKUP_ENABLED,
-  STUDENT_LOOKUP_UNAVAILABLE_MESSAGE,
-} from '../../constants/student-lookup.constants';
+
+const LOOKUP_UNAVAILABLE =
+  'الخدمة غير متاحة حاليًا — سيتم تفعيلها لاحقًا';
 
 @Component({
   selector: 'app-thanaweya-result',
@@ -31,10 +27,11 @@ import {
 export class ThanaweyaResultComponent {
   private fb = inject(FormBuilder);
   private api = inject(ApiService);
+  private destroyRef = inject(DestroyRef);
 
   readonly fmt = formatNumber;
-  readonly lookupEnabled = STUDENT_LOOKUP_ENABLED;
-  readonly lookupUnavailableMessage = STUDENT_LOOKUP_UNAVAILABLE_MESSAGE;
+  lookupEnabled = false;
+  readonly lookupUnavailableMessage = LOOKUP_UNAVAILABLE;
 
   loading = false;
   error = '';
@@ -45,9 +42,23 @@ export class ThanaweyaResultComponent {
   });
 
   constructor() {
-    if (!this.lookupEnabled) {
-      this.form.disable();
-    }
+    this.api
+      .getConfig()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (config) => {
+          this.lookupEnabled = config.studentResultsAvailable;
+          if (!this.lookupEnabled) {
+            this.form.disable();
+          } else {
+            this.form.enable();
+          }
+        },
+        error: () => {
+          this.lookupEnabled = false;
+          this.form.disable();
+        },
+      });
   }
 
   get thanaweyaMaxScore(): number {
@@ -61,10 +72,6 @@ export class ThanaweyaResultComponent {
 
   scoreProgress(totalDegree: number): number {
     return scoreProgress(totalDegree, this.thanaweyaMaxScore);
-  }
-
-  trackLabel(track: string): string {
-    return getTrackLabel(track);
   }
 
   onSeatingInput(event: Event): void {
@@ -87,11 +94,7 @@ export class ThanaweyaResultComponent {
     );
   }
 
-  predictQueryParams(): { score: number; track?: string } {
+  predictQueryParams(): { score: number } {
     return predictQueryParams(this.result);
-  }
-
-  hasTrackRank(result: StudentResult): boolean {
-    return hasTrackRank(result);
   }
 }

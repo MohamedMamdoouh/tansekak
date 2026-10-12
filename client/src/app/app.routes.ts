@@ -5,7 +5,7 @@ import { GuideComponent } from './pages/guide/guide.component';
 import { DesignerComponent } from './pages/designer/designer.component';
 import { ResultsComponent } from './pages/results/results.component';
 import { ThanaweyaResultComponent } from './pages/thanaweya-result/thanaweya-result.component';
-import { TrackRankComponent } from './pages/track-rank/track-rank.component';
+import { AdminImportResultsComponent } from './pages/admin/import-results/import-results.component';
 import { AdminLoginComponent } from './pages/admin/login/login.component';
 import { AdminLayoutComponent } from './pages/admin/admin-layout.component';
 import { AdminDashboardComponent } from './pages/admin/dashboard/dashboard.component';
@@ -19,7 +19,6 @@ export const routes: Routes = [
   { path: '', component: LandingComponent },
   { path: 'predict', component: PredictComponent },
   { path: 'thanaweya-result', component: ThanaweyaResultComponent },
-  { path: 'track-rank', component: TrackRankComponent },
   { path: 'guide', component: GuideComponent },
   { path: 'designer', component: DesignerComponent },
   { path: 'results', component: ResultsComponent },
@@ -33,6 +32,11 @@ export const routes: Routes = [
       { path: 'years', component: AdminYearsComponent },
       { path: 'cutoffs', component: AdminCutoffsComponent },
       { path: 'import', component: AdminImportComponent, canDeactivate: [importUploadGuard] },
+      {
+        path: 'import-results',
+        component: AdminImportResultsComponent,
+        canDeactivate: [importUploadGuard],
+      },
     ],
   },
   { path: '**', redirectTo: '' }

@@ -1,0 +1,158 @@
+
+    <div class="container">
+      <h1>استيراد نتائج الثانوية</h1>
+
+      <div class="card">
+        @if (apiAvailable === false) {
+          <p class="error">
+            الخادم غير متاح. تحقق من /health أو أعد تشغيل الـ API.
+          </p>
+        }
+
+        @if (yearLoadError) {
+          <p class="error">{{ yearLoadError }}</p>
+        }
+
+        @if (currentYear) {
+          <p class="note">
+            سنة القبول الحالية:
+            <strong>{{ currentYear.year }}</strong>
+            (الدرجة العظمى {{ currentYear.maximumScore }})
+          </p>
+        }
+
+        @if (summaryLoading) {
+          <p class="note">جاري تحميل الملخص...</p>
+        } @else if (summaryError) {
+          <p class="error">{{ summaryError }}</p>
+        } @else if (currentYear) {
+          <p class="note">
+            عدد النتائج المخزنة: <strong>{{ totalCount }}</strong>
+          </p>
+          @if (latestEvent) {
+            <p class="note">
+              آخر عملية:
+              {{ latestEvent.action === 'Imported' ? 'استيراد' : 'حذف' }}
+              @if (latestEvent.fileName) {
+                — {{ latestEvent.fileName }}
+              }
+              @if (latestEvent.rowCount != null) {
+                ({{ latestEvent.rowCount }} صف)
+              }
+              — {{ formatEventDate(latestEvent.performedAt) }}
+              — {{ latestEvent.performedByEmail }}
+            </p>
+          }
+        }
+
+        <p class="hint">
+          الصف الأول يجب أن يحتوي الأعمدة:
+          <code>seating_no</code>، <code>arabic_name</code>،
+          <code>total_degree</code> (أي ترتيب، أعمدة إضافية تُتجاهل).
+          الحد الأقصى للملف {{ maxFileMb }} ميجابايت. كل استيراد
+          <strong>يستبدل</strong> كل نتائج السنة الحالية.
+        </p>
+
+        <form (ngSubmit)="upload()">
+          <div class="form-group">
+            <label>ملف Excel (.xlsx)</label>
+            <input
+              #fileInput
+              type="file"
+              (change)="onFile($event)"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            />
+            @if (fileTouched && !file) {
+              <small class="field-error">يرجى اختيار ملف Excel</small>
+            }
+          </div>
+
+          <button
+            class="btn btn-primary"
+            type="submit"
+            [disabled]="uploading || !currentYear || apiAvailable === false"
+          >
+            {{ uploading ? 'جاري الاستيراد...' : 'استيراد' }}
+          </button>
+        </form>
+
+        @if (totalCount > 0) {
+          <div class="danger-zone">
+            <h2>حذف كل النتائج</h2>
+            <p>يمسح كل نتائج السنة الحالية دون حذف السنة أو حدود القبول.</p>
+            <button
+              type="button"
+              class="btn btn-danger"
+              (click)="openDeleteDialog()"
+              [disabled]="deleting || uploading"
+            >
+              حذف كل النتائج
+            </button>
+          </div>
+        }
+
+        @if (message) {
+          <p [class]="result?.success ? 'success' : 'error'">{{ message }}</p>
+        }
+
+        @if (result?.errors?.length) {
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>الصف</th>
+                  <th>العمود</th>
+                  <th>الرسالة</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (e of result!.errors!; track e.rowNumber + e.column) {
+                  <tr>
+                    <td>{{ e.rowNumber || '—' }}</td>
+                    <td>{{ e.column }}</td>
+                    <td>{{ e.message }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+
+    @if (showDeleteDialog) {
+      <div class="dialog-backdrop" role="presentation" (click)="closeDeleteDialog()"></div>
+      <div class="dialog" role="dialog" aria-labelledby="delete-title">
+        <h2 id="delete-title">تأكيد الحذف</h2>
+        <p>اكتب «{{ deleteConfirm }}» للتأكيد.</p>
+        <input
+          type="text"
+          [(ngModel)]="deleteConfirmText"
+          [ngModelOptions]="{ standalone: true }"
+          class="confirm-input"
+        />
+        <div class="dialog-actions">
+          <button type="button" class="btn" (click)="closeDeleteDialog()">إلغاء</button>
+          <button
+            type="button"
+            class="btn btn-danger"
+            [disabled]="deleteConfirmText.trim() !== deleteConfirm || deleting"
+            (click)="confirmDelete()"
+          >
+            {{ deleting ? 'جاري الحذف...' : 'حذف' }}
+          </button>
+        </div>
+      </div>
+    }
+
+    @if (showSuccessDialog) {
+      <app-import-success-dialog
+        heading="تم استيراد النتائج"
+        [message]="successMessage"
+        detailTitle="نتائج الثانوية"
+        [detailSubtitle]="
+          importedCount != null ? importedCount + ' نتيجة طالب' : ''
+        "
+        (closed)="closeSuccessDialog()"
+      />
+    }

@@ -23,6 +23,10 @@ export function resolveApiError(
     return SESSION_EXPIRED_MESSAGE;
   }
 
+  if (status === 429) {
+    return body?.message ?? 'طلبات كثيرة. حاول مرة أخرى بعد دقيقة.';
+  }
+
   if (status >= 500) {
     return 'حدث خطأ في الخادم. حاول مرة أخرى لاحقًا.';
   }

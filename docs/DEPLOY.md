@@ -15,7 +15,7 @@ Related: [API.md](./API.md)
 
 No CORS setup on Render — API and SPA share one origin. Do **not** set `Frontend__Origin`.
 
-No object storage (R2/S3) is required. Student Excel import was removed from the current stage.
+No object storage (R2/S3) is required. Student results are imported via `/admin/import-results` (`.xlsx`, max 50 MB).
 
 There is no `render.yaml`. Create the web service in the Render dashboard.
 
@@ -61,9 +61,8 @@ On boot the app:
 2. Runs EF migrations (including `DropImportJobs`, which removes the unused import-job table).
 3. Seeds the catalog from JSON if `Governorates` is empty, and creates admission year **2027** (max 320, current).
 4. Repairs `Faculties.AllowedTracks` from seed JSON when they diverge.
-5. Repairs Mathematics tracks on existing `StudentResults` rows when case/seating inference indicates علمي رياضة.
-6. Imports seed Markdown for any current-year track that has **zero** cutoffs (does not overwrite existing rows).
-7. Creates the admin user from `AdminSeed__*`.
+5. Imports seed Markdown for any current-year track that has **zero** cutoffs (does not overwrite existing rows).
+6. Creates the admin user from `AdminSeed__*`.
 
 Catalog JSON is copied into the image as `SeedData/*.json`. Cutoff Markdown is copied by the API project when those files are in the Docker build context (`SeededData/cutoffs/*.md` → `SeedData/cutoffs/`). `.dockerignore` excludes `*.md` globally, so production images often skip cutoff bootstrap and log that seed cutoff files were not found.
 
@@ -79,11 +78,11 @@ The `2026` in filenames is the official source cycle; rows attach to the current
 
 ### Student results
 
-Student results are **never seeded**. Excel import was **removed** from the backend; the admin dashboard shows a disabled placeholder card only.
+Student results are **never seeded**. After first deploy, sign in and upload at `/admin/import-results`.
 
-- `/thanaweya-result` and `/track-rank` are **read-only** and work when `StudentResults` rows already exist (for example from a prior deployment or manual database work).
-- There is no `/admin/import-results` route and no import API.
-- Deleting the admission year cascades student results for that year.
+- `/thanaweya-result` opens when the current year has results (`studentResultsAvailable` on `/api/config`).
+- Large imports run synchronously in one request; avoid deploying while an import is running. A synthetic 800,000-row file imported in about 2.3 minutes on a container limited to 512 MB and 0.1 CPU, peaking at about 211 MB. A synthetic 800,000-row file (16 MB) finished in about 2.3 minutes inside Docker limited to 512 MB and 0.1 CPU, peaking at about 250 MB.
+- Deleting the admission year cascades student results and import history for that year.
 
 ---
 

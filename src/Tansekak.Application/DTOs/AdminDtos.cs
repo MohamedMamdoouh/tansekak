@@ -26,3 +26,16 @@ public record DashboardDto(
     int FacultiesCount,
     int StudentResultsCount,
     int? CurrentYear);
+
+public record StudentResultImportEventDto(
+    string Action,
+    string? FileName,
+    int? RowCount,
+    DateTime PerformedAt,
+    string PerformedByEmail);
+
+public record StudentResultsSummaryDto(
+    int TotalCount,
+    StudentResultImportEventDto? LatestEvent);
+
+public record DeleteStudentResultsDto(int DeletedCount);

@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Tansekak.Application.Common;
 using Tansekak.Domain.Entities;
 using Tansekak.Domain.Enums;
+using Tansekak.Infrastructure.Identity;
 using Tansekak.Infrastructure.Persistence;
 
 namespace Tansekak.Api.Tests;
@@ -37,6 +40,7 @@ public sealed class TansekakWebApplicationFactory : WebApplicationFactory<Progra
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.Database.EnsureCreated();
         SeedIntegrationData(db);
+        SeedAdmin(scope.ServiceProvider);
 
         return host;
     }
@@ -110,8 +114,6 @@ public sealed class TansekakWebApplicationFactory : WebApplicationFactory<Progra
                 SeatingNo = "2410001",
                 ArabicName = "طالب أ",
                 TotalDegree = 390,
-                StudentCaseDesc = "علمي علوم",
-                Track = AcademicTrack.Science,
             },
             new StudentResult
             {
@@ -120,9 +122,34 @@ public sealed class TansekakWebApplicationFactory : WebApplicationFactory<Progra
                 SeatingNo = "2410002",
                 ArabicName = "طالب ب",
                 TotalDegree = 380,
-                StudentCaseDesc = "علمي علوم",
-                Track = AcademicTrack.Science,
             });
         db.SaveChanges();
     }
+
+    private static void SeedAdmin(IServiceProvider services)
+    {
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+
+        if (!roleManager.RoleExistsAsync(Roles.Administrator).GetAwaiter().GetResult())
+            roleManager.CreateAsync(new IdentityRole(Roles.Administrator)).GetAwaiter().GetResult();
+
+        if (userManager.FindByEmailAsync(AdminEmail).GetAwaiter().GetResult() is not null)
+            return;
+
+        var user = new ApplicationUser
+        {
+            UserName = AdminEmail,
+            Email = AdminEmail,
+            EmailConfirmed = true
+        };
+        var created = userManager.CreateAsync(user, AdminPassword).GetAwaiter().GetResult();
+        if (!created.Succeeded)
+            throw new InvalidOperationException(string.Join(", ", created.Errors.Select(e => e.Description)));
+
+        userManager.AddToRoleAsync(user, Roles.Administrator).GetAwaiter().GetResult();
+    }
+
+    public const string AdminEmail = "admin@tansekak.local";
+    public const string AdminPassword = "Admin@12345";
 }

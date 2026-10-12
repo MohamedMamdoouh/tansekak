@@ -302,28 +302,49 @@ namespace Tansekak.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<string>("StudentCaseDesc")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
                     b.Property<decimal>("TotalDegree")
                         .HasPrecision(6, 2)
                         .HasColumnType("numeric(6,2)");
 
-                    b.Property<byte?>("Track")
-                        .HasColumnType("smallint");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("SeatingNo");
 
                     b.HasIndex("AdmissionYearId", "SeatingNo")
                         .IsUnique();
 
-                    b.HasIndex("AdmissionYearId", "Track", "TotalDegree", "SeatingNo");
-
                     b.ToTable("StudentResults");
+                });
+
+            modelBuilder.Entity("Tansekak.Domain.Entities.StudentResultImportEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Action")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("AdmissionYearId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FileName")
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)");
+
+                    b.Property<DateTime>("PerformedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PerformedByEmail")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int?>("RowCount")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdmissionYearId", "PerformedAt");
+
+                    b.ToTable("StudentResultImportEvents");
                 });
 
             modelBuilder.Entity("Tansekak.Domain.Entities.University", b =>
@@ -510,6 +531,17 @@ namespace Tansekak.Infrastructure.Persistence.Migrations
                 {
                     b.HasOne("Tansekak.Domain.Entities.AdmissionYear", "AdmissionYear")
                         .WithMany("StudentResults")
+                        .HasForeignKey("AdmissionYearId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AdmissionYear");
+                });
+
+            modelBuilder.Entity("Tansekak.Domain.Entities.StudentResultImportEvent", b =>
+                {
+                    b.HasOne("Tansekak.Domain.Entities.AdmissionYear", "AdmissionYear")
+                        .WithMany()
                         .HasForeignKey("AdmissionYearId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();

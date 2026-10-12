@@ -11,6 +11,7 @@ public sealed class EntityIdAllocator(AppDbContext db)
     public const string Faculties = "Faculties";
     public const string Governorates = "Governorates";
     public const string StudentResults = "StudentResults";
+    public const string StudentResultImportEvents = "StudentResultImportEvents";
     public const string Universities = "Universities";
     public const string UniversityFaculties = "UniversityFaculties";
 
@@ -21,6 +22,7 @@ public sealed class EntityIdAllocator(AppDbContext db)
         Faculties,
         Governorates,
         StudentResults,
+        StudentResultImportEvents,
         Universities,
         UniversityFaculties
     ];
@@ -109,6 +111,7 @@ public sealed class EntityIdAllocator(AppDbContext db)
             Faculties => await db.Faculties.MaxAsync(x => (int?)x.Id, cancellationToken) ?? 0,
             Governorates => await db.Governorates.MaxAsync(x => (int?)x.Id, cancellationToken) ?? 0,
             StudentResults => await db.StudentResults.MaxAsync(x => (int?)x.Id, cancellationToken) ?? 0,
+            StudentResultImportEvents => await db.StudentResultImportEvents.MaxAsync(x => (int?)x.Id, cancellationToken) ?? 0,
             Universities => await db.Universities.MaxAsync(x => (int?)x.Id, cancellationToken) ?? 0,
             UniversityFaculties => await db.UniversityFaculties.MaxAsync(x => (int?)x.Id, cancellationToken) ?? 0,
             _ => throw new ArgumentException($"Unknown sequence name '{sequenceName}'.", nameof(sequenceName))

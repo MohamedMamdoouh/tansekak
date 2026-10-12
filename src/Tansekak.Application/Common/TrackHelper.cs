@@ -23,12 +23,6 @@ public static class TrackHelper
         if (Map.TryGetValue(normalized, out track))
             return true;
 
-        if (StudentTrackInferrer.TryInferFromCaseDesc(value) is AcademicTrack inferred)
-        {
-            track = inferred;
-            return true;
-        }
-
         track = default;
         return false;
     }
@@ -56,5 +50,9 @@ public static class TrackHelper
         ["Science", "Mathematics", "Literature"];
 
     private static string Normalize(string? value) =>
-        StudentTrackInferrer.NormalizeForMatch(value ?? string.Empty);
+        (value ?? string.Empty).Trim()
+            .Replace('ى', 'ي')
+            .Replace('أ', 'ا')
+            .Replace('إ', 'ا')
+            .Replace('آ', 'ا');
 }

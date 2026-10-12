@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import {
+  normalizeConfig,
   normalizePagedCutoffs,
   normalizePredictResponse,
   normalizeStudentResult,
@@ -20,6 +21,8 @@ import {
   Config,
   Dashboard,
   ImportResult,
+  DeleteStudentResultsResponse,
+  StudentResultsSummary,
   PagedCutoffs,
   PredictRequest,
   PredictResponse,
@@ -34,7 +37,7 @@ export class ApiService {
   getConfig(): Observable<Config> {
     return this.http
       .get<ApiResponse<Config>>('/api/config')
-      .pipe(map((r) => r.data));
+      .pipe(map((r) => normalizeConfig(r.data)));
   }
 
   predict(body: PredictRequest): Observable<PredictResponse> {
@@ -208,6 +211,39 @@ export class ApiService {
       onProgress,
       signal,
     );
+  }
+
+  getStudentResultsSummary(yearId: number): Observable<StudentResultsSummary> {
+    return this.http
+      .get<ApiResponse<StudentResultsSummary>>(
+        `/api/admin/admission-years/${yearId}/student-results/summary`,
+      )
+      .pipe(map((r) => r.data));
+  }
+
+  importStudentResultsWithProgress(
+    yearId: number,
+    file: File,
+    onProgress: (progress: ImportUploadProgress) => void,
+    signal?: AbortSignal,
+  ): Promise<ImportResult> {
+    const form = new FormData();
+    form.append('file', file);
+    return uploadImportFile(
+      this.http,
+      `/api/admin/admission-years/${yearId}/student-results/import`,
+      form,
+      onProgress,
+      signal,
+    );
+  }
+
+  deleteStudentResults(yearId: number): Observable<DeleteStudentResultsResponse> {
+    return this.http
+      .delete<ApiResponse<DeleteStudentResultsResponse>>(
+        `/api/admin/admission-years/${yearId}/student-results`,
+      )
+      .pipe(map((r) => r.data));
   }
 
   private buildCutoffImportFormData(file: File, track: string): FormData {

@@ -30,3 +30,11 @@ public sealed class ValidationException : AppException
     {
     }
 }
+
+public sealed class ConflictException : AppException
+{
+    public ConflictException(string errorCode, string? userMessage = null)
+        : base(errorCode, HttpStatusCode.Conflict, userMessage)
+    {
+    }
+}

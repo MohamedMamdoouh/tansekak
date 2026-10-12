@@ -122,8 +122,7 @@ public class AdmissionYearServiceTests
                 AdmissionYearId = 1,
                 SeatingNo = "12345",
                 ArabicName = "طالب",
-                TotalDegree = 380,
-                StudentCaseDesc = "ناجح"
+                TotalDegree = 380
             });
             await db.SaveChangesAsync();
 

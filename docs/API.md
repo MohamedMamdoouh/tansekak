@@ -42,7 +42,9 @@ Tracks: `Science`, `Mathematics`, `Literature`. Arabic labels are also accepted.
 
 Current published year.
 
-`data`: `{ appName, currentYear, maximumScore, tracks }`
+`data`: `{ appName, currentYear, maximumScore, tracks, studentResultsAvailable }`
+
+`studentResultsAvailable` is `true` when the current year has at least one `StudentResult` row.
 
 No current year → `503` `NO_CURRENT_YEAR`.
 
@@ -71,15 +73,11 @@ The Angular `/predict` page only collects input; the client calls this endpoint 
 
 ### `GET /api/thanaweya-results/{seatingNo}`
 
-Current year only. Used by `/thanaweya-result` and `/track-rank`.
+Current year only. Used by `/thanaweya-result`. Rate limit: **60 requests/minute per IP** → `429` `RATE_LIMIT_EXCEEDED`.
 
-`data`: `{ seatingNo, arabicName, totalDegree, studentCaseDesc, year, maximumScore, track?, trackRank?, trackTotalStudents? }`
-
-`track` is `Science` / `Mathematics` / `Literature` when resolvable. Rank is among the same track; higher score wins; ties broken by lower seating number.
+`data`: `{ seatingNo, arabicName, totalDegree, year, maximumScore }`
 
 Missing → `404` `STUDENT_RESULT_NOT_FOUND`. Empty seating number is treated as not found.
-
-**Read-only:** there is no admin API to create or import `StudentResult` rows in the current stage. Rows must already exist in the database (for example from a prior deployment or manual DB operations).
 
 ### `GET /health`
 
@@ -123,7 +121,7 @@ Missing id → `404` `NOT_FOUND`. Names in `nameAr` are Arabic.
 | `GET`    | `/api/admin/admission-years/current` | `404` `NOT_FOUND` if none                                                                   |
 | `GET`    | `/api/admin/admission-years/{id}`    |                                                                                             |
 | `POST`   | `/api/admin/admission-years`         | `{ year, maximumScore }`, `isCurrent: true`. Existing year → `ADMISSION_YEAR_LIMIT_REACHED` |
-| `PUT`    | `/api/admin/admission-years/{id}`    | Year number and max score. Does not change `isCurrent` unless none is current               |
+| `PUT`    | `/api/admin/admission-years/{id}`    | Year number and max score. Rejects `maximumScore` below highest stored student total → `MAXIMUM_SCORE_BELOW_RESULTS` |
 | `DELETE` | `/api/admin/admission-years/{id}`    | Cascades cutoffs and student results                                                        |
 
 ### Cutoffs
@@ -140,15 +138,16 @@ Item: `{ id, admissionYearId, universityFacultyId, track, cutoffScore, universit
 
 ### Imports
 
-**Current stage:** only Markdown cutoff import is implemented.
+Markdown cutoff import replaces that **year+track**. Student Excel import **replaces all results for the year**. Failed import → `400` `VALIDATION_FAILED` with row `errors` (first 100 shown, total count in `message`). Success `data`: `{ success, message, importedCount?, errors? }`.
 
-Markdown cutoff import replaces that **year+track**. Failed import → `400` `VALIDATION_FAILED` with row `errors`. Success `data`: `{ success, message, importedCount?, errors? }`.
+| Method | Path                                                              | Notes                                                                                    |
+| ------ | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `POST` | `/api/admin/admission-years/{yearId}/import`                      | multipart `file` (`.md`, max 10 MB) + `track`                                            |
+| `GET`  | `/api/admin/admission-years/{yearId}/student-results/summary`     | `{ totalCount, latestEvent? }`                                                           |
+| `POST` | `/api/admin/admission-years/{yearId}/student-results/import`      | multipart `file` (`.xlsx`, max 50 MB). Headers row 1: `seating_no`, `arabic_name`, `total_degree` |
+| `DELETE` | `/api/admin/admission-years/{yearId}/student-results`           | Deletes all results for the year; writes a `Deleted` import event                          |
 
-| Method | Path                                         | Notes                                                                      |
-| ------ | -------------------------------------------- | -------------------------------------------------------------------------- |
-| `POST` | `/api/admin/admission-years/{yearId}/import` | multipart `file` (`.md`, max 10 MB) + `track`. College / cutoff pipe table |
-
-**Removed (not part of the contract):** student Excel import (`import-results`), presigned R2 upload, async `ImportJob` polling/cancel. The admin dashboard shows a disabled placeholder card for future student import; there is no route or endpoint.
+Concurrent import/delete → `409` `IMPORT_IN_PROGRESS`. Oversized file → `413` `FILE_TOO_LARGE`.
 
 ## Status codes
 
@@ -159,6 +158,9 @@ Markdown cutoff import replaces that **year+track**. Failed import → `400` `VA
 | `403` | Not Administrator           |
 | `404` | Missing entity              |
 | `500` | `INTERNAL_ERROR`            |
+| `409` | `IMPORT_IN_PROGRESS`        |
+| `413` | `FILE_TOO_LARGE`            |
+| `429` | `RATE_LIMIT_EXCEEDED`       |
 | `503` | `NO_CURRENT_YEAR`           |
 
 ## Error codes
@@ -203,6 +205,17 @@ Failure `message` is Arabic. Placeholders: `SCORE_EXCEEDS_MAX` (`{0}` max score)
 | `CUTOFF_MUST_BE_NUMBER`        | يجب أن يكون الحد الأدنى رقماً.                            |
 | `FILE_NO_DATA_ROWS`            | الملف لا يحتوي على صفوف بيانات.                           |
 | `UNRESOLVED_COLLEGE`           | تعذر مطابقة "{0}" مع جامعة/كلية في النظام.                |
+| `ONLY_XLSX_FILES`              | يُسمح فقط بملفات Excel بصيغة .xlsx.                       |
+| `FILE_TOO_LARGE`               | حجم الملف يتجاوز 50 ميجابايت.                             |
+| `IMPORT_IN_PROGRESS`           | يوجد استيراد نتائج قيد التنفيذ. حاول مرة أخرى بعد قليل.   |
+| `IMPORT_FILE_INVALID`          | ملف Excel غير صالح أو تالف.                               |
+| `MISSING_COLUMN`                 | العمود المطلوب "{0}" غير موجود في الصف الأول.             |
+| `TOTAL_DEGREE_INVALID`         | قيمة المجموع غير صالحة.                                   |
+| `TOTAL_DEGREE_NEGATIVE`        | يجب أن يكون المجموع صفراً أو أكثر.                        |
+| `FIELD_TOO_LONG`               | الحقل "{0}" يتجاوز الحد الأقصى ({1} حرف).                 |
+| `SEATING_NO_INVALID`           | رقم الجلوس يجب أن يحتوي على أرقام فقط.                    |
+| `RATE_LIMIT_EXCEEDED`          | طلبات كثيرة. حاول مرة أخرى بعد دقيقة.                     |
+| `MAXIMUM_SCORE_BELOW_RESULTS`  | لا يمكن تخفيض الحد الأقصى للمجموع لأن هناك نتائج أعلى.    |
 
 ## OpenAPI
 

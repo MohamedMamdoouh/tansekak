@@ -40,6 +40,20 @@ public static class ApiErrorCodes
     public const string FileNoDataRows = "FILE_NO_DATA_ROWS";
     public const string UnresolvedCollege = "UNRESOLVED_COLLEGE";
 
+    public const string OnlyXlsxFiles = "ONLY_XLSX_FILES";
+    public const string FileTooLarge = "FILE_TOO_LARGE";
+    public const string ImportInProgress = "IMPORT_IN_PROGRESS";
+    public const string ImportFileInvalid = "IMPORT_FILE_INVALID";
+    public const string MissingColumn = "MISSING_COLUMN";
+    public const string TotalDegreeInvalid = "TOTAL_DEGREE_INVALID";
+    public const string TotalDegreeNegative = "TOTAL_DEGREE_NEGATIVE";
+    public const string FieldTooLong = "FIELD_TOO_LONG";
+    public const string SeatingNoInvalid = "SEATING_NO_INVALID";
+    public const string WorkbookEmpty = "WORKBOOK_EMPTY";
+    public const string WorksheetEmpty = "WORKSHEET_EMPTY";
+    public const string RateLimitExceeded = "RATE_LIMIT_EXCEEDED";
+    public const string MaximumScoreBelowResults = "MAXIMUM_SCORE_BELOW_RESULTS";
+
     public static readonly IReadOnlyCollection<string> All =
     [
         InternalError,
@@ -78,5 +92,18 @@ public static class ApiErrorCodes
         CutoffMustBeNumber,
         FileNoDataRows,
         UnresolvedCollege,
+        OnlyXlsxFiles,
+        FileTooLarge,
+        ImportInProgress,
+        ImportFileInvalid,
+        MissingColumn,
+        TotalDegreeInvalid,
+        TotalDegreeNegative,
+        FieldTooLong,
+        SeatingNoInvalid,
+        WorkbookEmpty,
+        WorksheetEmpty,
+        RateLimitExceeded,
+        MaximumScoreBelowResults,
     ];
 }

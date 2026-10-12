@@ -52,6 +52,13 @@ public class AdmissionYearService(
 
         await EnsureYearUniqueAsync(dto.Year, id, cancellationToken);
 
+        var maxStoredScore = await db.StudentResults
+            .Where(x => x.AdmissionYearId == id)
+            .MaxAsync(x => (decimal?)x.TotalDegree, cancellationToken);
+
+        if (maxStoredScore is not null && dto.MaximumScore < maxStoredScore.Value)
+            throw new ValidationException(ApiErrorCodes.MaximumScoreBelowResults);
+
         entity!.Year = dto.Year;
         entity.MaximumScore = dto.MaximumScore;
         // Recover legacy / stuck rows where Publish was removed and no year is current.
@@ -82,6 +89,9 @@ public class AdmissionYearService(
             await db.StudentResults
                 .Where(x => x.AdmissionYearId == id)
                 .ExecuteDeleteAsync(cancellationToken);
+            await db.StudentResultImportEvents
+                .Where(x => x.AdmissionYearId == id)
+                .ExecuteDeleteAsync(cancellationToken);
             await db.AdmissionYears
                 .Where(x => x.Id == id)
                 .ExecuteDeleteAsync(cancellationToken);
@@ -97,6 +107,11 @@ public class AdmissionYearService(
                 .Where(x => x.AdmissionYearId == id)
                 .ToListAsync(cancellationToken);
             db.StudentResults.RemoveRange(results);
+
+            var importEvents = await db.StudentResultImportEvents
+                .Where(x => x.AdmissionYearId == id)
+                .ToListAsync(cancellationToken);
+            db.StudentResultImportEvents.RemoveRange(importEvents);
 
             var entity = await db.AdmissionYears.FindAsync([id], cancellationToken);
             if (entity is not null)

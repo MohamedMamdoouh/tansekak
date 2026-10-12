@@ -2,11 +2,26 @@ import {
   AdmissionCutoff,
   AdmissionResult,
   ApiResponse,
+  Config,
   ImportResult,
   PagedCutoffs,
   PredictResponse,
   StudentResult,
 } from '../models';
+
+export function normalizeConfig(data: Config | null | undefined): Config {
+  const raw = (data ?? {}) as Config & {
+    StudentResultsAvailable?: boolean;
+  };
+  return {
+    appName: raw.appName ?? '',
+    currentYear: raw.currentYear ?? 0,
+    maximumScore: raw.maximumScore ?? 0,
+    tracks: raw.tracks ?? [],
+    studentResultsAvailable:
+      raw.studentResultsAvailable ?? raw.StudentResultsAvailable ?? false,
+  };
+}
 
 export function normalizeStudentResult(
   data: StudentResult | null | undefined,
@@ -16,7 +31,6 @@ export function normalizeStudentResult(
       seatingNo: '',
       arabicName: '',
       totalDegree: 0,
-      studentCaseDesc: '',
       year: 0,
       maximumScore: 0,
     };
@@ -26,25 +40,16 @@ export function normalizeStudentResult(
     SeatingNo?: string;
     ArabicName?: string;
     TotalDegree?: number;
-    StudentCaseDesc?: string;
     Year?: number;
     MaximumScore?: number;
-    Track?: string | null;
-    TrackRank?: number | null;
-    TrackTotalStudents?: number | null;
   };
 
   return {
     seatingNo: raw.seatingNo ?? raw.SeatingNo ?? '',
     arabicName: raw.arabicName ?? raw.ArabicName ?? '',
     totalDegree: raw.totalDegree ?? raw.TotalDegree ?? 0,
-    studentCaseDesc: raw.studentCaseDesc ?? raw.StudentCaseDesc ?? '',
     year: raw.year ?? raw.Year ?? 0,
     maximumScore: raw.maximumScore ?? raw.MaximumScore ?? 0,
-    track: raw.track ?? raw.Track ?? null,
-    trackRank: raw.trackRank ?? raw.TrackRank ?? null,
-    trackTotalStudents:
-      raw.trackTotalStudents ?? raw.TrackTotalStudents ?? null,
   };
 }
 

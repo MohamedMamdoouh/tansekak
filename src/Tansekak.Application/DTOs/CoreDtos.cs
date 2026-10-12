@@ -4,7 +4,8 @@ public record ConfigDto(
     string AppName,
     int CurrentYear,
     decimal MaximumScore,
-    IReadOnlyList<string> Tracks);
+    IReadOnlyList<string> Tracks,
+    bool StudentResultsAvailable);
 
 public record PredictRequestDto(string Track, decimal Score, int Page = 1, int PageSize = 10);
 
@@ -23,9 +24,5 @@ public record StudentResultDto(
     string SeatingNo,
     string ArabicName,
     decimal TotalDegree,
-    string StudentCaseDesc,
     int Year,
-    decimal MaximumScore,
-    string? Track = null,
-    int? TrackRank = null,
-    int? TrackTotalStudents = null);
+    decimal MaximumScore);

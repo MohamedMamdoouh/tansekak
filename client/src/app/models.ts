@@ -23,6 +23,24 @@ export interface Config {
   currentYear: number;
   maximumScore: number;
   tracks: string[];
+  studentResultsAvailable: boolean;
+}
+
+export interface StudentResultImportEvent {
+  action: string;
+  fileName?: string | null;
+  rowCount?: number | null;
+  performedAt: string;
+  performedByEmail: string;
+}
+
+export interface StudentResultsSummary {
+  totalCount: number;
+  latestEvent: StudentResultImportEvent | null;
+}
+
+export interface DeleteStudentResultsResponse {
+  deletedCount: number;
 }
 
 export interface PredictRequest {
@@ -100,12 +118,8 @@ export interface StudentResult {
   seatingNo: string;
   arabicName: string;
   totalDegree: number;
-  studentCaseDesc: string;
   year: number;
   maximumScore: number;
-  track?: string | null;
-  trackRank?: number | null;
-  trackTotalStudents?: number | null;
 }
 
 export const TRACK_LABELS: Record<string, string> = {

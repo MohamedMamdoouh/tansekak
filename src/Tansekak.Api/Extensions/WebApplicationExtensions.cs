@@ -28,6 +28,7 @@ public static class WebApplicationExtensions
         app.UseStaticFiles();
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseRateLimiter();
         app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
         app.MapControllers();
         app.MapFallbackToFile("index.html");

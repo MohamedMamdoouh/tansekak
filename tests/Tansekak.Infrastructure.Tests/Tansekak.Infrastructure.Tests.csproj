@@ -26,6 +26,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\Shared\TestWorkbook.cs" Link="Shared\TestWorkbook.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="..\..\SeededData\**\*">
       <Link>SeededData\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

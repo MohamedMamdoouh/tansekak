@@ -29,6 +29,7 @@ public class ApiIntegrationTests : IClassFixture<TansekakWebApplicationFactory>
         Assert.Equal(2026, envelope.Data!.CurrentYear);
         Assert.Equal(410, envelope.Data.MaximumScore);
         Assert.Equal(["Science", "Mathematics", "Literature"], envelope.Data.Tracks);
+        Assert.True(envelope.Data.StudentResultsAvailable);
     }
 
     [Fact]
@@ -101,6 +102,20 @@ public class ApiIntegrationTests : IClassFixture<TansekakWebApplicationFactory>
     {
         var client = _factory.CreateClient();
         var response = await client.GetAsync("/api/admin/admission-years");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Student_results_import_requires_authentication()
+    {
+        var client = _factory.CreateClient();
+        using var content = new MultipartFormDataContent();
+        content.Add(new ByteArrayContent([]), "file", "test.xlsx");
+
+        var response = await client.PostAsync(
+            "/api/admin/admission-years/1/student-results/import",
+            content);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

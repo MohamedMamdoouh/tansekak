@@ -110,11 +110,7 @@
           <span class="action-arrow" aria-hidden="true">←</span>
         </a>
 
-        <!-- Student results import — will be implemented later -->
-        <div
-          class="action-card card action-card--unavailable"
-          aria-disabled="true"
-        >
+        <a routerLink="/admin/import-results" class="action-card card">
           <div class="action-icon action-icon--accent" aria-hidden="true">
             <svg
               width="24"
@@ -129,12 +125,10 @@
           </div>
           <div>
             <h3>استيراد نتائج الثانوية</h3>
-            <p>رفع ملف Excel بنتائج الطلاب واستبدال بيانات السنة المختارة.</p>
-            <p class="action-unavailable">
-              الخدمة غير متاحة حاليًا — سيتم تفعيلها لاحقًا
-            </p>
+            <p>رفع ملف Excel بنتائج الطلاب واستبدال بيانات السنة الحالية.</p>
           </div>
-        </div>
+          <span class="action-arrow" aria-hidden="true">←</span>
+        </a>
       </div>
     </section>
   }

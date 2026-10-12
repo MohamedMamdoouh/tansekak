@@ -40,6 +40,19 @@ public static class ArabicErrorCatalog
         [ApiErrorCodes.CutoffMustBeNumber] = "يجب أن يكون الحد الأدنى رقماً.",
         [ApiErrorCodes.FileNoDataRows] = "الملف لا يحتوي على صفوف بيانات.",
         [ApiErrorCodes.UnresolvedCollege] = "تعذر مطابقة \"{0}\" مع جامعة/كلية في النظام.",
+        [ApiErrorCodes.OnlyXlsxFiles] = "يُسمح فقط بملفات Excel بصيغة .xlsx.",
+        [ApiErrorCodes.FileTooLarge] = "حجم الملف يتجاوز 50 ميجابايت.",
+        [ApiErrorCodes.ImportInProgress] = "يوجد استيراد نتائج قيد التنفيذ. حاول مرة أخرى بعد قليل.",
+        [ApiErrorCodes.ImportFileInvalid] = "ملف Excel غير صالح أو تالف.",
+        [ApiErrorCodes.MissingColumn] = "العمود المطلوب \"{0}\" غير موجود في الصف الأول.",
+        [ApiErrorCodes.TotalDegreeInvalid] = "قيمة المجموع غير صالحة.",
+        [ApiErrorCodes.TotalDegreeNegative] = "يجب أن يكون المجموع صفراً أو أكثر.",
+        [ApiErrorCodes.FieldTooLong] = "الحقل \"{0}\" يتجاوز الحد الأقصى ({1} حرف).",
+        [ApiErrorCodes.SeatingNoInvalid] = "رقم الجلوس يجب أن يحتوي على أرقام فقط.",
+        [ApiErrorCodes.WorkbookEmpty] = "ملف Excel لا يحتوي على أوراق.",
+        [ApiErrorCodes.WorksheetEmpty] = "ورقة Excel فارغة.",
+        [ApiErrorCodes.RateLimitExceeded] = "طلبات كثيرة. حاول مرة أخرى بعد دقيقة.",
+        [ApiErrorCodes.MaximumScoreBelowResults] = "لا يمكن تخفيض الحد الأقصى للمجموع لأن هناك نتائج أعلى من القيمة الجديدة.",
     };
 
     public static string GetMessage(string errorCode) =>

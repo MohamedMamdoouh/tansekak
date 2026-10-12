@@ -1,0 +1,65 @@
+h1 {
+  margin-top: 0;
+}
+.note {
+  background: #eff6ff;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
+.hint {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+table {
+  width: 100%;
+  margin-top: 0.75rem;
+  border-collapse: collapse;
+}
+th,
+td {
+  padding: 0.5rem;
+  text-align: right;
+  border-bottom: 1px solid #eef2f7;
+}
+.table-scroll {
+  overflow-x: auto;
+}
+.danger-zone {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #fecaca;
+}
+.btn-danger {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+}
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 1000;
+}
+.dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1001;
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  max-width: 24rem;
+  width: calc(100% - 2rem);
+}
+.dialog-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+.confirm-input {
+  width: 100%;
+  margin-top: 0.5rem;
+}
