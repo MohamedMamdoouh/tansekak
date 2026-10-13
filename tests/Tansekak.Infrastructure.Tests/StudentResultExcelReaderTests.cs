@@ -93,7 +93,6 @@ public class StudentResultExcelReaderTests
 
     [Theory]
     [InlineData("-1", ApiErrorCodes.TotalDegreeNegative)]
-    [InlineData("320.5", ApiErrorCodes.ScoreExceedsMax)]
     [InlineData("163.555", ApiErrorCodes.TotalDegreeInvalid)]
     [InlineData("abc", ApiErrorCodes.TotalDegreeInvalid)]
     [InlineData("1,234", ApiErrorCodes.TotalDegreeInvalid)]
@@ -108,13 +107,34 @@ public class StudentResultExcelReaderTests
     }
 
     [Fact]
-    public void Score_above_maximum_message_states_the_maximum()
+    public void Ignores_rows_above_the_maximum_and_keeps_the_rest()
     {
-        using var stream = TestWorkbook.Create(Header, [1001660L, "محمد", 400]);
+        using var stream = TestWorkbook.Create(
+            Header,
+            [1L, "أ", 200],
+            [2L, "ب", 320.5m],
+            [3L, "ج", 400],
+            [4L, "د", 320],
+            [2L, "هـ", 210]);
 
-        var (outcome, _) = Read(stream);
+        var (outcome, rows) = Read(stream);
 
+        Assert.Equal(0, outcome.TotalErrorCount);
+        Assert.Equal(2, outcome.SkippedAboveMaximumCount);
+        Assert.Equal(["1", "4", "2"], rows.Select(r => r.SeatingNo));
+    }
+
+    [Fact]
+    public void File_with_only_above_maximum_rows_is_rejected_without_importing()
+    {
+        using var stream = TestWorkbook.Create(Header, [1L, "أ", 400], [2L, "ب", "320.01"]);
+
+        var (outcome, rows) = Read(stream);
+
+        Assert.Empty(rows);
+        Assert.Equal(2, outcome.SkippedAboveMaximumCount);
         Assert.Contains("320", Assert.Single(outcome.Errors).Message);
+        Assert.Equal(ApiErrorCodes.FileNoDataRows, outcome.Errors[0].ErrorCode);
     }
 
     [Theory]
@@ -163,7 +183,7 @@ public class StudentResultExcelReaderTests
             [1L, "أ", 200],
             [null, null, null],
             ["  ", new InlineText(" "), null],
-            [2L, "ب", 999]);
+            [2L, "ب", "abc"]);
 
         var (outcome, _) = Read(stream);
 

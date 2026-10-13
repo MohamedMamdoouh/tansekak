@@ -135,10 +135,11 @@ public sealed class StudentResultImportService(
         if (outcome.TotalErrorCount > 0)
         {
             logger.LogWarning(
-                "Student results import rejected for year {YearId}. Errors={ErrorCount} ValidRows={ValidRows} FileBytes={FileBytes} DurationMs={DurationMs} Admin={Admin}",
+                "Student results import rejected for year {YearId}. Errors={ErrorCount} ValidRows={ValidRows} SkippedAboveMaximum={SkippedAboveMaximum} FileBytes={FileBytes} DurationMs={DurationMs} Admin={Admin}",
                 year.Id,
                 outcome.TotalErrorCount,
                 outcome.ValidRowCount,
+                outcome.SkippedAboveMaximumCount,
                 fileBytes,
                 stagingMs,
                 performedByEmail);
@@ -150,19 +151,21 @@ public sealed class StudentResultImportService(
         await transaction.CommitAsync(CancellationToken.None);
 
         logger.LogInformation(
-            "Student results import completed for year {YearId}. Rows={RowCount} FileBytes={FileBytes} StagingMs={StagingMs} SwapMs={SwapMs} DurationMs={DurationMs} Admin={Admin}",
+            "Student results import completed for year {YearId}. Rows={RowCount} SkippedAboveMaximum={SkippedAboveMaximum} FileBytes={FileBytes} StagingMs={StagingMs} SwapMs={SwapMs} DurationMs={DurationMs} Admin={Admin}",
             year.Id,
             outcome.ValidRowCount,
+            outcome.SkippedAboveMaximumCount,
             fileBytes,
             stagingMs,
             elapsed.ElapsedMilliseconds - stagingMs,
             elapsed.ElapsedMilliseconds,
             performedByEmail);
 
-        return new ImportResultDto(
-            true,
-            $"تم استيراد {outcome.ValidRowCount} نتيجة طالب (استبدال كامل للسنة).",
-            outcome.ValidRowCount);
+        var message = outcome.SkippedAboveMaximumCount > 0
+            ? $"تم استيراد {outcome.ValidRowCount} نتيجة طالب (استبدال كامل للسنة). تم تجاهل {outcome.SkippedAboveMaximumCount} صف تجاوز الحد الأقصى ({year.MaximumScore})."
+            : $"تم استيراد {outcome.ValidRowCount} نتيجة طالب (استبدال كامل للسنة).";
+
+        return new ImportResultDto(true, message, outcome.ValidRowCount);
     }
 
     private async Task<StudentResultExcelReadOutcome> StageRowsAsync(

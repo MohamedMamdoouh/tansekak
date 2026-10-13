@@ -118,11 +118,40 @@ public class StudentResultImportPostgresTests(PostgresFixture fixture)
             var result = await CreateService(db).ImportAsync(YearId, file, "bad.xlsx", Admin);
 
             Assert.False(result.Success);
-            Assert.Contains(result.Errors!, e => e.RowNumber == 3 && e.ErrorCode == ApiErrorCodes.ScoreExceedsMax);
+            Assert.DoesNotContain(result.Errors!, e => e.ErrorCode == ApiErrorCodes.ScoreExceedsMax);
             Assert.Contains(result.Errors!, e => e.RowNumber == 4 && e.ErrorCode == ApiErrorCodes.Duplicate);
         }
 
         await AssertUntouchedAsync(connectionString, "999");
+    }
+
+    [Fact]
+    public async Task Import_skips_rows_above_the_maximum_and_replaces_with_the_rest()
+    {
+        var connectionString = await fixture.CreateDatabaseAsync();
+        await SeedYearAsync(connectionString, existingSeatingNos: ["999"]);
+
+        using var file = TestWorkbook.Create(
+            Header,
+            [1001660L, "محمد", 200],
+            [1001661L, "احمد", 400],
+            [1001662L, "هشام", 320]);
+
+        await using (var db = PostgresFixture.CreateContext(connectionString))
+        {
+            var result = await CreateService(db).ImportAsync(YearId, file, "results.xlsx", Admin);
+
+            Assert.True(result.Success, result.Message);
+            Assert.Equal(2, result.ImportedCount);
+            Assert.Contains("تم تجاهل 1", result.Message);
+        }
+
+        await using (var db = PostgresFixture.CreateContext(connectionString))
+        {
+            var rows = await db.StudentResults.AsNoTracking().OrderBy(x => x.SeatingNo).ToListAsync();
+            Assert.Equal(["1001660", "1001662"], rows.Select(x => x.SeatingNo));
+            Assert.Equal([200m, 320m], rows.Select(x => x.TotalDegree));
+        }
     }
 
     [Fact]

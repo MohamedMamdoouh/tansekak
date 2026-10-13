@@ -20,6 +20,7 @@ public sealed class StudentResultExcelReadOutcome
     public required IReadOnlyList<ImportValidationErrorDto> Errors { get; init; }
     public required int TotalErrorCount { get; init; }
     public required int ValidRowCount { get; init; }
+    public required int SkippedAboveMaximumCount { get; init; }
 }
 
 /// <summary>
@@ -45,7 +46,8 @@ public static class StudentResultExcelReader
         | NumberStyles.AllowDecimalPoint;
 
     /// <summary>
-    /// Validates every row. <paramref name="onValidRow"/> receives valid rows only until the first error;
+    /// Validates every row. Rows whose total degree is above <paramref name="maximumScore"/> are omitted.
+    /// <paramref name="onValidRow"/> receives valid rows only until the first error;
     /// validation continues afterwards so the total error count is known.
     /// </summary>
     public static StudentResultExcelReadOutcome ReadAndValidate(
@@ -57,6 +59,7 @@ public static class StudentResultExcelReader
         var errors = new List<ImportValidationErrorDto>();
         var totalErrorCount = 0;
         var validRowCount = 0;
+        var skippedAboveMaximumCount = 0;
 
         void AddError(ImportValidationErrorDto error)
         {
@@ -69,7 +72,8 @@ public static class StudentResultExcelReader
         {
             Errors = errors,
             TotalErrorCount = totalErrorCount,
-            ValidRowCount = validRowCount
+            ValidRowCount = validRowCount,
+            SkippedAboveMaximumCount = skippedAboveMaximumCount
         };
 
         try
@@ -108,7 +112,13 @@ public static class StudentResultExcelReader
                 if (values.IsEmpty)
                     continue;
 
-                var parsed = ValidateRow(row.RowNumber, values, maximumScore, seenSeatingNos, AddError);
+                var parsed = ValidateRow(
+                    row.RowNumber,
+                    values,
+                    maximumScore,
+                    seenSeatingNos,
+                    AddError,
+                    ref skippedAboveMaximumCount);
                 if (parsed is null)
                     continue;
 
@@ -120,7 +130,15 @@ public static class StudentResultExcelReader
             if (!hasHeader)
                 AddError(Err(0, "File", ApiErrorCodes.WorksheetEmpty));
             else if (validRowCount == 0 && totalErrorCount == 0)
-                AddError(Err(0, "File", ApiErrorCodes.FileNoDataRows));
+            {
+                AddError(skippedAboveMaximumCount > 0
+                    ? Err(
+                        0,
+                        "File",
+                        ApiErrorCodes.FileNoDataRows,
+                        $"كل الصفوف تتجاوز الحد الأقصى المسموح ({maximumScore}) ولم يُستورد أي صف.")
+                    : Err(0, "File", ApiErrorCodes.FileNoDataRows));
+            }
 
             return Outcome();
         }
@@ -136,7 +154,8 @@ public static class StudentResultExcelReader
         RowValues values,
         decimal maximumScore,
         HashSet<string> seenSeatingNos,
-        Action<ImportValidationErrorDto> addError)
+        Action<ImportValidationErrorDto> addError,
+        ref int skippedAboveMaximum)
     {
         var valid = true;
 
@@ -144,6 +163,15 @@ public static class StudentResultExcelReader
         {
             valid = false;
             addError(error);
+        }
+
+        // A degree above the year's maximum drops the whole row. It is not an error and does not
+        // reserve the seating number, so the rest of the file can still be imported.
+        if (TryParseTotalDegree(values.TotalDegree, values.TotalDegreeIsNumeric, out var totalDegree)
+            && totalDegree > maximumScore)
+        {
+            skippedAboveMaximum++;
+            return null;
         }
 
         var seatingNo = values.SeatingNo;
@@ -160,18 +188,10 @@ public static class StudentResultExcelReader
         else if (arabicName.Length > MaxArabicNameLength)
             Fail(FieldTooLong(rowNumber, ArabicNameHeader, MaxArabicNameLength));
 
-        if (!TryParseTotalDegree(values.TotalDegree, values.TotalDegreeIsNumeric, out var totalDegree))
+        if (!TryParseTotalDegree(values.TotalDegree, values.TotalDegreeIsNumeric, out totalDegree))
             Fail(Err(rowNumber, TotalDegreeHeader, ApiErrorCodes.TotalDegreeInvalid));
         else if (totalDegree < 0)
             Fail(Err(rowNumber, TotalDegreeHeader, ApiErrorCodes.TotalDegreeNegative));
-        else if (totalDegree > maximumScore)
-        {
-            Fail(Err(
-                rowNumber,
-                TotalDegreeHeader,
-                ApiErrorCodes.ScoreExceedsMax,
-                ArabicErrorCatalog.GetMessage(ApiErrorCodes.ScoreExceedsMax, maximumScore)));
-        }
         else if (decimal.Round(totalDegree, 2) != totalDegree)
             Fail(Err(rowNumber, TotalDegreeHeader, ApiErrorCodes.TotalDegreeInvalid));
 
