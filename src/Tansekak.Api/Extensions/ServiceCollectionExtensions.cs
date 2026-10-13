@@ -1,3 +1,4 @@
+using System.Net;
 using System.Threading.RateLimiting;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authorization;
@@ -32,9 +33,13 @@ public static class ServiceCollectionExtensions
                 await context.HttpContext.Response.WriteAsJsonAsync(response);
             };
 
+            // Render terminates TLS at Cloudflare and appends to X-Forwarded-For.
+            // ForwardLimit is 1, so RemoteIpAddress is the nearest proxy hop and every
+            // visitor would share that hop's 60/minute bucket. Cloudflare overwrites
+            // these headers with the real visitor address.
             options.AddPolicy("ThanaweyaLookup", httpContext =>
                 RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    partitionKey: ThanaweyaLookupPartitionKey(httpContext),
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 60,
@@ -84,5 +89,31 @@ public static class ServiceCollectionExtensions
         }
 
         return services;
+    }
+
+    private static string ThanaweyaLookupPartitionKey(HttpContext httpContext)
+    {
+        if (TryParseClientIp(httpContext, "CF-Connecting-IP", out var cloudflareIp))
+            return cloudflareIp;
+
+        if (TryParseClientIp(httpContext, "True-Client-IP", out var trueClientIp))
+            return trueClientIp;
+
+        return httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    }
+
+    private static bool TryParseClientIp(HttpContext httpContext, string headerName, out string ip)
+    {
+        ip = string.Empty;
+        if (!httpContext.Request.Headers.TryGetValue(headerName, out var values))
+            return false;
+
+        // One address only. A list or arbitrary text must not open a new bucket.
+        var text = values.ToString().Trim();
+        if (!IPAddress.TryParse(text, out var parsed))
+            return false;
+
+        ip = parsed.ToString();
+        return true;
     }
 }

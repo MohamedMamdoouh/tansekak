@@ -107,6 +107,38 @@ public class ApiIntegrationTests : IClassFixture<TansekakWebApplicationFactory>
     }
 
     [Fact]
+    public async Task Thanaweya_lookup_rate_limit_uses_cloudflare_client_ip()
+    {
+        var client = _factory.CreateClient();
+        const string clientIp = "203.0.113.10";
+
+        for (var i = 1; i <= 60; i++)
+        {
+            using var request = LookupRequest(clientIp, $"198.51.100.{i}");
+            using var response = await client.SendAsync(request);
+            Assert.NotEqual(HttpStatusCode.TooManyRequests, response.StatusCode);
+        }
+
+        using var blockedRequest = LookupRequest(clientIp, "198.51.100.250");
+        using var blocked = await client.SendAsync(blockedRequest);
+        Assert.Equal(HttpStatusCode.TooManyRequests, blocked.StatusCode);
+        using var blockedJson = JsonDocument.Parse(await blocked.Content.ReadAsStringAsync());
+        Assert.Equal(ApiErrorCodes.RateLimitExceeded, blockedJson.RootElement.GetProperty("errorCode").GetString());
+
+        using var otherRequest = LookupRequest("203.0.113.11", "198.51.100.251");
+        using var other = await client.SendAsync(otherRequest);
+        Assert.NotEqual(HttpStatusCode.TooManyRequests, other.StatusCode);
+    }
+
+    private static HttpRequestMessage LookupRequest(string cloudflareClientIp, string forwardedFor)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/thanaweya-results/2410001");
+        request.Headers.TryAddWithoutValidation("CF-Connecting-IP", cloudflareClientIp);
+        request.Headers.TryAddWithoutValidation("X-Forwarded-For", forwardedFor);
+        return request;
+    }
+
+    [Fact]
     public async Task Student_results_import_requires_authentication()
     {
         var client = _factory.CreateClient();
